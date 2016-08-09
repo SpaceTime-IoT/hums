@@ -27,8 +27,8 @@
 %%
 %% All Hummer client access to the projection store SHOULD NOT use this
 %% module's API.  Instead, clients should access indirectly via {@link
-%% hummer_cr_client}, {@link hummer_proxy_flu1_client}, or {@link
-%% hummer_flu1_client}.
+%% hums_cr_client}, {@link hums_proxy_flu1_client}, or {@link
+%% hums_flu1_client}.
 %%
 %% The projection store is implemented by an Erlang/OTP `gen_server'
 %% process that is associated with each FLU.  Conceptually, the
@@ -38,10 +38,10 @@
 %% `private' type); the value is a projection data structure
 %% (`projection_v1()' type).
 
--module(hummer_projection_store).
+-module(hums_projection_store).
 
--include("hummer.hrl").
--include("hummer_projection.hrl").
+-include("hums.hrl").
+-include("hums_projection.hrl").
 -define(V(X,Y), ok).
 
 %% API
@@ -180,8 +180,8 @@ g_call(PidSpec, Arg, Timeout) ->
 
 init([DataDir, NotifyWedgeStateChanges]) ->
     lclock_init(),
-    PublicDir = hummer_util:make_projection_filename(DataDir, "public"),
-    PrivateDir = hummer_util:make_projection_filename(DataDir, "private"),
+    PublicDir = hums_util:make_projection_filename(DataDir, "public"),
+    PrivateDir = hums_util:make_projection_filename(DataDir, "private"),
     ok = filelib:ensure_dir(PublicDir ++ "/ignored"),
     ok = filelib:ensure_dir(PrivateDir ++ "/ignored"),
     MbEpoch = find_max_epochid(PublicDir),
@@ -276,7 +276,7 @@ do_proj_write(ProjType, Proj, S) ->
     do_proj_write2(ProjType, Proj, S).
 
 do_proj_write2(ProjType, #projection_v1{epoch_csum=CSum}=Proj, S) ->
-    case (hummer_projection:update_checksum(Proj))#projection_v1.epoch_csum of
+    case (hums_projection:update_checksum(Proj))#projection_v1.epoch_csum of
         CSum2 when CSum2 == CSum ->
             do_proj_write3(ProjType, Proj, S);
         _Else ->
@@ -302,8 +302,8 @@ do_proj_write3(ProjType, #projection_v1{epoch_number=Epoch,
             if CurEpoch == Epoch, CurCSum == CSum ->
                     do_proj_write4(ProjType, Proj, Path, Epoch, S);
                true ->
-                    %% io:format(user, "OUCH: on disk: ~w\n", [hummer_projection:make_summary(binary_to_term(Bin))]),
-                    %% io:format(user, "OUCH: clobber: ~w\n", [hummer_projection:make_summary(Proj)]),
+                    %% io:format(user, "OUCH: on disk: ~w\n", [hums_projection:make_summary(binary_to_term(Bin))]),
+                    %% io:format(user, "OUCH: clobber: ~w\n", [hums_projection:make_summary(Proj)]),
                     %% io:format(user, "OUCH: clobber: ~p\n", [Proj#projection_v1.dbg2]),
                     %% {{error, written, CurEpoch, Epoch, CurCSum, CSum}, S}
                     {{error, written}, S}
@@ -321,8 +321,8 @@ do_proj_write4(ProjType, Proj, Path, Epoch, #state{consistency_mode=CMode}=S) ->
     ok = file:close(FH),
     EffectiveProj = Proj,
     EffectiveEpoch = EffectiveProj#projection_v1.epoch_number,
-    EpochId = hummer_projection:get_epoch_id(Proj),
-    EffectiveEpochId = hummer_projection:get_epoch_id(EffectiveProj),
+    EpochId = hums_projection:get_epoch_id(Proj),
+    EffectiveEpochId = hums_projection:get_epoch_id(EffectiveProj),
     %%
     NewS = if ProjType == public,
               Epoch > element(1, S#state.max_public_epochid) ->
@@ -360,18 +360,18 @@ do_proj_write4(ProjType, Proj, Path, Epoch, #state{consistency_mode=CMode}=S) ->
 
 update_wedge_state(PidSpec, Boolean, {0,_}=EpochId) ->
     %% Epoch #0 is a special case: no projection has been written yet.
-    %% However, given the way that hummer_flu_psup starts the
+    %% However, given the way that hums_flu_psup starts the
     %% processes, we are roughly 100% certain that the FLU for PidSpec
     %% is not yet running.
-    catch hummer_flu1:update_wedge_state(PidSpec, Boolean, EpochId);
+    catch hums_flu1:update_wedge_state(PidSpec, Boolean, EpochId);
 update_wedge_state(PidSpec, Boolean, EpochId) ->
-    %% We have a race problem with the startup order by hummer_flu_psup:
+    %% We have a race problem with the startup order by hums_flu_psup:
     %% the order is projection store (me!), projection manager, FLU.
     %% PidSpec is the FLU.  It's almost certainly a registered name.
     %% Wait for it to exist before sending a message to it.  Racing with
     %% supervisor startup/shutdown/restart is ok.
     ok = wait_for_liveness(PidSpec, 10*1000),
-    hummer_flu1:update_wedge_state(PidSpec, Boolean, EpochId).
+    hums_flu1:update_wedge_state(PidSpec, Boolean, EpochId).
 
 wait_for_liveness(Pid, _WaitTime) when is_pid(Pid) ->
     ok;
@@ -396,10 +396,10 @@ pick_path(private, S) ->
     S#state.private_dir.
 
 epoch2name(Epoch) ->
-    hummer_util:int_to_hexstr(Epoch, 32).
+    hums_util:int_to_hexstr(Epoch, 32).
 
 name2epoch(Name) ->
-    hummer_util:hexstr_to_int(Name).
+    hums_util:hexstr_to_int(Name).
 
 find_all(Dir) ->
     Fs = filelib:wildcard("*", Dir),

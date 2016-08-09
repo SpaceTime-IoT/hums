@@ -18,7 +18,7 @@
 %%
 %% -------------------------------------------------------------------
 
--include("hummer_projection.hrl").
+-include("hums_projection.hrl").
 
 -define(NOT_FLAPPING, {0,0,0}).
 

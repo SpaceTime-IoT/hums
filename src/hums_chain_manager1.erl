@@ -41,7 +41,7 @@
 %% independently; each is constrained so that it will reach consensus
 %% via independent computation &amp; action.
 
--module(hummer_chain_manager1).
+-module(hums_chain_manager1).
 
 %% TODO: I am going to sever the connection between the flowchart and the
 %%       code.  That diagram is really valuable, but it also takes a long time
@@ -51,8 +51,8 @@
 
 -behaviour(gen_server).
 
--include("hummer_projection.hrl").
--include("hummer_chain_manager.hrl").
+-include("hums_projection.hrl").
+-include("hums_chain_manager.hrl").
 
 -record(ch_mgr, {
           name            :: pv1_server(),
@@ -76,7 +76,7 @@
           fitness_svr     :: atom()
          }).
 
--define(FLU_PC, hummer_client).
+-define(FLU_PC, hums_client).
 -define(TO, (2*1000)).                          % default timeout
 
 %% Keep a history of our flowchart execution in the process dictionary.
@@ -116,7 +116,7 @@
          simple_chain_state_transition_is_sane/3,
          simple_chain_state_transition_is_sane/5,
          chain_state_transition_is_sane/6]).
--export([perhaps_call/5, % for partition simulator use w/hummer_fitness
+-export([perhaps_call/5, % for partition simulator use w/hums_fitness
          init_remember_down_list/0]).
 %% Exports so that EDoc docs generated for these internal funcs.
 -export([mk/3]).
@@ -228,7 +228,7 @@ test_read_latest_public_projection(Pid, ReadRepairP) ->
 init({MyName, InitMembersDict, MgrOpts0}) ->
     put(ttt, [?LINE]),
     init_remember_down_list(),
-    MgrOpts = MgrOpts0 ++ application:get_env(hummer, chain_manager_opts, []),
+    MgrOpts = MgrOpts0 ++ application:get_env(hums, chain_manager_opts, []),
     Opt = fun(Key, Default) -> proplists:get_value(Key, MgrOpts, Default) end,
 
     InitWitness_list = Opt(witnesses, []),
@@ -280,7 +280,7 @@ init({MyName, InitMembersDict, MgrOpts0}) ->
                          runenv=RunEnv,
                          opts=MgrOpts,
                          last_down=[no_such_server_initial_value_only],
-                         fitness_svr=hummer_proj_sup:make_fitness_regname(MyName)
+                         fitness_svr=hums_proj_sup:make_fitness_regname(MyName)
                         }, Proj),
     S2 = do_set_chain_members_dict(MembersDict, S),
     S3 = if ActiveP == false ->
@@ -316,8 +316,8 @@ handle_call({set_chain_members, SetChainName, SetOldEpoch, CMode,
                                 {NUPI, All_list -- NUPI}
                         end,
     NewEpoch = OldEpoch + ?SET_CHAIN_MEMBERS_EPOCH_SKIP,
-    ok = set_consistency_mode(hummer_proj_sup:make_proj_supname(MyName), CMode),
-    NewProj = hummer_projection:update_checksum(
+    ok = set_consistency_mode(hums_proj_sup:make_proj_supname(MyName), CMode),
+    NewProj = hums_projection:update_checksum(
                 OldProj#projection_v1{author_server=MyName,
                                       chain_name=SetChainName,
                                       creation_time=erlang:timestamp(),
@@ -424,21 +424,21 @@ code_change(_OldVsn, S, _Extra) ->
 make_none_projection(Epoch, MyName, All_list, Witness_list, MembersDict) ->
     Down_list = All_list,
     UPI_list = [],
-    P = hummer_projection:new(MyName, MembersDict, Down_list, UPI_list, [], []),
+    P = hums_projection:new(MyName, MembersDict, Down_list, UPI_list, [], []),
     CMode = if Witness_list == [] ->
                     ap_mode;
                Witness_list /= [] ->
                     cp_mode
             end,
-    hummer_projection:update_checksum(P#projection_v1{epoch_number=Epoch,
+    hums_projection:update_checksum(P#projection_v1{epoch_number=Epoch,
                                                      mode=CMode,
                                                      witnesses=Witness_list}).
 
 make_all_projection(MyName, All_list, Witness_list, MembersDict) ->
     Down_list = [],
     UPI_list = All_list,
-    P = hummer_projection:new(MyName, MembersDict, Down_list, UPI_list, [], []),
-    hummer_projection:update_checksum(P#projection_v1{witnesses=Witness_list}).
+    P = hums_projection:new(MyName, MembersDict, Down_list, UPI_list, [], []),
+    hums_projection:update_checksum(P#projection_v1{witnesses=Witness_list}).
 
 get_my_private_proj_boot_info(MgrOpts, DefaultDict, DefaultProj) ->
     get_my_proj_boot_info(MgrOpts, DefaultDict, DefaultProj, private).
@@ -451,7 +451,7 @@ get_my_proj_boot_info(MgrOpts, DefaultDict, DefaultProj, ProjType) ->
         undefined ->
             {DefaultDict, DefaultProj};
         Store ->
-            {ok, P} = hummer_projection_store:read_latest_projection(Store,
+            {ok, P} = hums_projection_store:read_latest_projection(Store,
                                                                     ProjType, 7789),
             {P#projection_v1.members_dict, P}
     end.
@@ -464,8 +464,8 @@ store_zeroth_projection_maybe(ZeroProj, MgrOpts) ->
         undefined ->
             ok;
         Store ->
-            _ = hummer_projection_store:write(Store, public, ZeroProj),
-            _ = hummer_projection_store:write(Store, private, ZeroProj),
+            _ = hums_projection_store:write(Store, public, ZeroProj),
+            _ = hums_projection_store:write(Store, private, ZeroProj),
             ok
     end.
 
@@ -475,7 +475,7 @@ get_projection_store_regname(MgrOpts) ->
 set_consistency_mode(undefined, _CMode) ->
     ok;
 set_consistency_mode(ProjStore, CMode) ->
-    hummer_projection_store:set_consistency_mode(ProjStore, CMode).
+    hums_projection_store:set_consistency_mode(ProjStore, CMode).
 
 set_active_timer(#ch_mgr{name=MyName, members_dict=MembersDict}=S) ->
     FLU_list = [P#p_srvr.name || {_,P} <- orddict:to_list(MembersDict)],
@@ -869,7 +869,7 @@ calc_projection2(LastProj, RelativeToServer, AllHosed, Dbg,
         end,
     ?REACT({calc,?LINE,[{new_upi, NewUPI},{new_rep, NewRepairing}]}),
 
-    P0 = hummer_projection:new(OldEpochNum + 1,
+    P0 = hums_projection:new(OldEpochNum + 1,
                               MyName, MembersDict, Down, NewUPI, NewRepairing,
                               D_foo ++
                                   Dbg ++ [{ps, Partitions},{nodes_up, Up}]),
@@ -890,7 +890,7 @@ calc_projection2(LastProj, RelativeToServer, AllHosed, Dbg,
                          if length(UpWitnesses) >= Need ->
                                  Ws = lists:sublist(UpWitnesses, Need),
                                  ?REACT({calc,?LINE,[{ws, Ws}]}),
-                                 hummer_projection:update_checksum(
+                                 hums_projection:update_checksum(
                                    P1#projection_v1{upi=Ws++NewUPI});
                             true ->
                                  ?REACT({calc,?LINE,[]}),
@@ -920,16 +920,16 @@ calc_projection2(LastProj, RelativeToServer, AllHosed, Dbg,
                                                   {why_none, Why}],
                                              dbg2=[
                                                {creation_time, erlang:timestamp()}]},
-                                 hummer_projection:update_checksum(P_none1)
+                                 hums_projection:update_checksum(P_none1)
                          end
                  end;
             CMode == ap_mode ->
                  ?REACT({calc,?LINE,[]}),
                  P1
          end,
-    P3 = hummer_projection:update_checksum(
+    P3 = hums_projection:update_checksum(
            P2#projection_v1{mode=CMode, witnesses=OldWitness_list}),
-    ?REACT({calc,?LINE,[hummer_projection:make_summary(P3)]}),
+    ?REACT({calc,?LINE,[hums_projection:make_summary(P3)]}),
     {P3, S#ch_mgr{runenv=RunEnv3}, Up}.
 
 check_latest_private_projections_same_epoch(FLUs, MyProj, Partitions, S) ->
@@ -988,7 +988,7 @@ update_runenv_with_up_nodes(UpNodesNew, RunEnv1) ->
     end.
 
 calc_up_nodes_sim(MyName, AllMembers, RunEnv1) ->
-    {Partitions2, Islands2} = hummer_partition_simulator:get(AllMembers),
+    {Partitions2, Islands2} = hums_partition_simulator:get(AllMembers),
     catch ?REACT({calc_up_nodes,?LINE,[{partitions,Partitions2},
                                        {islands,Islands2}]}),
     UpNodes = lists:sort(
@@ -1157,7 +1157,7 @@ do_react_to_env(S) ->
 ?TTT(),
         case rand:uniform(100) of
             N when N < 5 ->
-                hummer_fitness:send_spam_to_everyone(S#ch_mgr.fitness_svr),?TTT();
+                hums_fitness:send_spam_to_everyone(S#ch_mgr.fitness_svr),?TTT();
             _ ->
                 ok
         end,
@@ -1194,7 +1194,7 @@ manage_last_down_list(#ch_mgr{last_down=LastDown,fitness_svr=FitnessSvr,
         Down when Down == LastDown ->
             S;
         Down ->
-            hummer_fitness:update_local_down_list(FitnessSvr, Down, MembersDict),
+            hums_fitness:update_local_down_list(FitnessSvr, Down, MembersDict),
             S#ch_mgr{last_down=Down}
     end.
 
@@ -1240,9 +1240,9 @@ react_to_env_A20(Retries, #ch_mgr{name=MyName, proj=P_current}=S) ->
                                    P_latest#projection_v1.epoch_number,
                                    P_latest#projection_v1.author_server,
                                    P_latest#projection_v1.all_members]),
-            EpochID = hummer_projection:make_epoch_id(P_current),
+            EpochID = hums_projection:make_epoch_id(P_current),
             ProjStore = get_projection_store_pid_or_regname(S),
-            {ok, NotifyPid} = hummer_projection_store:get_wedge_notify_pid(ProjStore),
+            {ok, NotifyPid} = hums_projection_store:get_wedge_notify_pid(ProjStore),
             _QQ = machi_flu1:update_wedge_state(NotifyPid, true, EpochID),
             #projection_v1{epoch_number=Epoch,
                            chain_name=ChainName,
@@ -1273,7 +1273,7 @@ react_to_env_A21(Retries, UnanimousTag, P_latest, ReadExtra, S) ->
                                                       ReadExtra, [xxx])),
     NotUnanimousPs = lists:sort(proplists:get_value(not_unanimous_answers,
                                                     ReadExtra, [xxx])),
-    NotUnanimousSumms = [hummer_projection:make_summary(
+    NotUnanimousSumms = [hums_projection:make_summary(
                        P#projection_v1{dbg2=[omitted]}) ||
                             P <- NotUnanimousPs,
                             is_record(P, projection_v1)],
@@ -1308,8 +1308,8 @@ react_to_env_A29(Retries, P_latest, LatestUnanimousP, _ReadExtra,
                  #ch_mgr{consistency_mode=CMode,
                          proj=P_current} = S) ->
     {Epoch_current,_} = EpochID_current =
-        hummer_projection:get_epoch_id(P_current),
-    {Epoch_latest,_} = EpochID_latest = hummer_projection:get_epoch_id(P_latest),
+        hums_projection:get_epoch_id(P_current),
+    {Epoch_latest,_} = EpochID_latest = hums_projection:get_epoch_id(P_latest),
     Trigger = if CMode == cp_mode, EpochID_latest /= EpochID_current ->
                       true;
                  true ->
@@ -1319,7 +1319,7 @@ react_to_env_A29(Retries, P_latest, LatestUnanimousP, _ReadExtra,
             ?REACT({a29, ?LINE,
                     [{epoch_id_latest,EpochID_latest},
                      {epoch_id_current,EpochID_current},
-                     {old_current, hummer_projection:make_summary(P_current)}]}),
+                     {old_current, hums_projection:make_summary(P_current)}]}),
             if Epoch_latest >= Epoch_current orelse Epoch_latest == 0 orelse
                P_current#projection_v1.upi == [] ->
                     ok;                                 % sanity check
@@ -1327,15 +1327,15 @@ react_to_env_A29(Retries, P_latest, LatestUnanimousP, _ReadExtra,
                     exit({?MODULE,?LINE,
                           {epoch_latest,Epoch_latest},
                           {epoch_current,Epoch_current},
-                          {latest,hummer_projection:make_summary(P_latest)},
-                          {current,hummer_projection:make_summary(P_current)}})
+                          {latest,hums_projection:make_summary(P_latest)},
+                          {current,hums_projection:make_summary(P_current)}})
             end,
             put(yyy_hack, []),
             case make_zerf(P_current, S) of
                 Zerf when is_record(Zerf, projection_v1) ->
                     ?REACT({a29, ?LINE,
                             [{zerf_backstop, true},
-                             {zerf_in, hummer_projection:make_summary(Zerf)}]}),
+                             {zerf_in, hums_projection:make_summary(Zerf)}]}),
                     #projection_v1{dbg=ZerfDbg} = Zerf,
                     Backstop = if Zerf#projection_v1.upi == [] ->
                                        [];
@@ -1362,9 +1362,9 @@ react_to_env_A30(Retries, P_latest, LatestUnanimousP, P_current_calc,
     ?REACT(a30),
     AllHosed = get_unfit_list(S#ch_mgr.fitness_svr),
     ?REACT({a30, ?LINE,
-            [{current, hummer_projection:make_summary(S#ch_mgr.proj)},
-             {current_calc, hummer_projection:make_summary(P_current_calc)},
-             {latest, hummer_projection:make_summary(P_latest)},
+            [{current, hums_projection:make_summary(S#ch_mgr.proj)},
+             {current_calc, hums_projection:make_summary(P_current_calc)},
+             {latest, hums_projection:make_summary(P_latest)},
              {all_hosed, AllHosed}
             ]}),
     ?REACT({a30, ?LINE, []}),
@@ -1380,12 +1380,12 @@ react_to_env_A30(Retries, P_latest, LatestUnanimousP, P_current_calc,
             P1 = P#projection_v1{chain_name=ChainName},
             P_newprop = if CMode == ap_mode ->
                                 %% Not really none proj: just myself, AP style
-                                hummer_projection:update_checksum(
+                                hums_projection:update_checksum(
                                   P1#projection_v1{upi=[MyName],
                                                   down=Down -- [MyName],
                                                   dbg=[{hosed_list,AllHosed}]});
                            CMode == cp_mode ->
-                                hummer_projection:update_checksum(
+                                hums_projection:update_checksum(
                                   P1#projection_v1{dbg=[{hosed_list,AllHosed}]})
                         end,
             react_to_env_A40(Retries, P_newprop, P_latest, LatestUnanimousP,
@@ -1399,7 +1399,7 @@ react_to_env_A31(Retries, P_latest, LatestUnanimousP, P_current_calc,
                  AllHosed, #ch_mgr{name=MyName} = S) ->
     {P_newprop1, S2,_Up} = calc_projection(S, MyName, AllHosed, P_current_calc),
     ?REACT({a31, ?LINE,
-            [{newprop1, hummer_projection:make_summary(P_newprop1)}]}),
+            [{newprop1, hums_projection:make_summary(P_newprop1)}]}),
 
     {P_newprop2, S3} = {P_newprop1, S2},
 
@@ -1408,11 +1408,11 @@ react_to_env_A31(Retries, P_latest, LatestUnanimousP, P_current_calc,
     #projection_v1{epoch_number=Epoch_latest}=P_latest,
     NewEpoch = erlang:max(Epoch_newprop2, Epoch_latest) + 1,
     P_newprop3 = P_newprop2#projection_v1{epoch_number=NewEpoch},
-    ?REACT({a31, ?LINE, [{newprop3, hummer_projection:make_summary(P_newprop3)}]}),
+    ?REACT({a31, ?LINE, [{newprop3, hums_projection:make_summary(P_newprop3)}]}),
 
     {P_newprop10, S10} = {P_newprop3, S3},
-    P_newprop11 = hummer_projection:update_checksum(P_newprop10),
-    ?REACT({a31, ?LINE, [{newprop11, hummer_projection:make_summary(P_newprop11)}]}),
+    P_newprop11 = hums_projection:update_checksum(P_newprop10),
+    ?REACT({a31, ?LINE, [{newprop11, hums_projection:make_summary(P_newprop11)}]}),
 
     react_to_env_A40(Retries, P_newprop11, P_latest, LatestUnanimousP,
                      P_current_calc, false, S10).
@@ -1472,7 +1472,7 @@ react_to_env_A40(Retries, P_newprop, P_latest, LatestUnanimousP,
 
     if
         AmExcludedFromLatestAll_p ->
-            ?REACT({a40, ?LINE, [{latest,hummer_projection:make_summary(P_latest)}]}),
+            ?REACT({a40, ?LINE, [{latest,hums_projection:make_summary(P_latest)}]}),
             react_to_env_A50(P_latest, [], S);
 
         AmHosedP ->
@@ -1503,7 +1503,7 @@ react_to_env_A40(Retries, P_newprop, P_latest, LatestUnanimousP,
                                                  {q4,P_newprop#projection_v1.repairing},
                                                  {q5, ExpectedUPI}]}),
                             %% Ha, there's a "fun" sync problem with the
-                            %% hummer_chain_manager1_converge_demo simulator:
+                            %% hums_chain_manager1_converge_demo simulator:
                             %% two servers could get caught in a mutual lock-
                             %% step that we would end up in this branch 100%
                             %% of the time because each would only ever see
@@ -1532,8 +1532,8 @@ react_to_env_A40(Retries, P_newprop, P_latest, LatestUnanimousP,
             %% TODO 2015-09-14: Should rank be factored in here?  If P_latest
             %% rank is definitely lower than current rank (or perhaps lower
             %% than P_newprop rank?), then don't accept it.  Hrm, I'm not sure
-            %% how that would ripple through the rest of this state hummerne &
-            %% interactions with the other state hummernes, hrmmmm.  For a real
+            %% how that would ripple through the rest of this state humsne &
+            %% interactions with the other state humsnes, hrmmmm.  For a real
             %% example, if current upi/rep = [c,b,g,a],[f], going to P_latest
             %% of [b,g,f],[a,c] doesn't make sense (even if we ignore the UPI
             %% sanity problem in this example).
@@ -1734,7 +1734,7 @@ react_to_env_B10(Retries, P_newprop, P_latest, LatestUnanimousP, P_current_calc,
             %% a former version of this code, we called this "flapping" and
             %% would enter an alternative projection calculation mode in order
             %% to dampen the flapping.  In today's version of the code, we use
-            %% the hummer_fitness service to help us figure out who is causing
+            %% the hums_fitness service to help us figure out who is causing
             %% the flapping so that we can exclude them from our projection
             %% calculations.
             %%
@@ -1752,7 +1752,7 @@ react_to_env_B10(Retries, P_newprop, P_latest, LatestUnanimousP, P_current_calc,
             %% believe, is using the older "flapping" detection mechanism for
             %% this worst-case condition: go to C103, fall back to shortest &
             %% safe projection, tell fitness server we're administratively
-            %% down for a short while (to signal to other state hummernes that
+            %% down for a short while (to signal to other state humsnes that
             %% they need to adapt to our bad situation), and then resume.
 
             io:format(user, "\nCONFIRM dbg *************************** ~w UniqueHistoryTrigger_p\n", [MyName]),
@@ -1929,15 +1929,15 @@ react_to_env_C103(#projection_v1{epoch_number=_Epoch_newprop} = _P_newprop,
     ChainName = P_current#projection_v1.chain_name,
     P_none1 = P_none0#projection_v1{chain_name=ChainName,
                                     dbg=[{none_projection,true}]},
-    P_none = hummer_projection:update_checksum(P_none1),
+    P_none = hums_projection:update_checksum(P_none1),
     ?REACT({c103, ?LINE,
             [{current_epoch, P_current#projection_v1.epoch_number},
              {none_projection_epoch, P_none#projection_v1.epoch_number}]}),
     io:format(user, "SET add_admin_down(~w) at ~w current_epoch ~w none_proj_epoch ~w =====================================\n", [MyName, time(), P_current#projection_v1.epoch_number, P_none#projection_v1.epoch_number]),
-    hummer_fitness:add_admin_down(S#ch_mgr.fitness_svr, MyName, []),
+    hums_fitness:add_admin_down(S#ch_mgr.fitness_svr, MyName, []),
     timer:sleep(5*1000),
     io:format(user, "SET delete_admin_down(~w) at ~w =====================================\n", [MyName, time()]),
-    hummer_fitness:delete_admin_down(S#ch_mgr.fitness_svr, MyName),
+    hums_fitness:delete_admin_down(S#ch_mgr.fitness_svr, MyName),
     react_to_env_C100(P_none, P_none, P_current_calc, S).
 
 react_to_env_C110(P_latest, #ch_mgr{name=MyName} = S) ->
@@ -1945,7 +1945,7 @@ react_to_env_C110(P_latest, #ch_mgr{name=MyName} = S) ->
     ?REACT({c110, ?LINE, [{latest_epoch,P_latest#projection_v1.epoch_number}]}),
     Extra1 = [],
     Extra2 = [{react,get(react)}],
-    P_latest2 = hummer_projection:update_dbg2(P_latest, Extra1 ++ Extra2),
+    P_latest2 = hums_projection:update_dbg2(P_latest, Extra1 ++ Extra2),
 
     MyStorePid = proxy_pid(MyName, S),
     Goo = P_latest2#projection_v1.epoch_number,
@@ -2009,7 +2009,7 @@ react_to_env_C110(P_latest, #ch_mgr{name=MyName} = S) ->
             ?REACT({c110, [{write, Else}]}),
             react_to_env_C111(P_latest, P_latest2, Extra1, MyStorePid, S);
         Else ->
-            Summ = hummer_projection:make_summary(P_latest2),
+            Summ = hums_projection:make_summary(P_latest2),
             io:format(user, "C110 error by ~w: ~w, ~w\n~p\n",
                       [MyName, Else, Summ, get(react)]),
             error_logger:error_msg("C110 error by ~w: ~w, ~w, ~w\n",
@@ -2025,7 +2025,7 @@ react_to_env_C111(#projection_v1{epoch_number=Epoch}=P_latest, P_latest2,
             %% We very intentionally do *not* pass P_latest2 forward:
             %% we must avoid bloating the dbg2 list!
             P_latest2_perhaps_annotated =
-                hummer_projection:update_dbg2(P_latest, Extra1),
+                hums_projection:update_dbg2(P_latest, Extra1),
             perhaps_verbose_c111(P_latest2_perhaps_annotated, S),
             react_to_env_C120(P_latest2_perhaps_annotated, [], S);
         {ok, P_wtf} ->
@@ -2043,7 +2043,7 @@ react_to_env_C111(#projection_v1{epoch_number=Epoch}=P_latest, P_latest2,
             timer:sleep(100),
             react_to_env_C111(P_latest, P_latest2, Extra1, MyStorePid, S);
         Else ->
-            Summ = hummer_projection:make_summary(P_latest),
+            Summ = hums_projection:make_summary(P_latest),
             io:format(user, "C111 error by ~w: ~w, ~w\n~p\n",
                       [MyName, Else, Summ, get(react)]),
             error_logger:error_msg("C111 error by ~w: ~w, ~w, ~w\n",
@@ -2056,7 +2056,7 @@ react_to_env_C120(P_latest, FinalProps, #ch_mgr{proj_history=H,
     ?REACT(c120),
     H2   = add_and_trunc_history(P_latest, H, ?MAX_HISTORY_LENGTH),
 
-    ?REACT({c120, [{latest, hummer_projection:make_summary(P_latest)}]}),
+    ?REACT({c120, [{latest, hums_projection:make_summary(P_latest)}]}),
     S2 = set_proj(S#ch_mgr{proj_history=H2,
                            sane_transitions=Xtns + 1}, P_latest),
     S3 = case is_annotated(P_latest) of
@@ -2110,14 +2110,14 @@ react_to_env_C300(#projection_v1{epoch_number=_Epoch_newprop}=P_newprop,
                   #projection_v1{epoch_number=_Epoch_latest}=_P_latest, S) ->
     ?REACT(c300),
 
-    react_to_env_C310(hummer_projection:update_checksum(P_newprop), S).
+    react_to_env_C310(hums_projection:update_checksum(P_newprop), S).
 
 react_to_env_C310(P_newprop, S) ->
     ?REACT(c310),
     Epoch = P_newprop#projection_v1.epoch_number,
     {WriteRes, S2} = cl_write_public_proj(Epoch, P_newprop, S),
     ?REACT({c310, ?LINE,
-            [{newprop, hummer_projection:make_summary(P_newprop)},
+            [{newprop, hums_projection:make_summary(P_newprop)},
             {write_result, WriteRes}]}),
     react_to_env_A10(manage_last_down_list(S2)).
 
@@ -2354,7 +2354,7 @@ projection_transition_is_sane_except_si_epoch(
     true = sets:is_disjoint(UPIS2, RepairingS2),
 
     %% We won't check the checksum of P1, but we will of P2.
-    P2 = hummer_projection:update_checksum(P2),
+    P2 = hums_projection:update_checksum(P2),
 
     %% CP mode extra sanity checks
     if CMode1 == cp_mode ->
@@ -2394,8 +2394,8 @@ projection_transition_is_sane_except_si_epoch(
  catch
      _Type:_Err ->
          ?RETURN2(oops),
-         S1 = hummer_projection:make_summary(P1),
-         S2 = hummer_projection:make_summary(P2),
+         S1 = hums_projection:make_summary(P1),
+         S2 = hums_projection:make_summary(P2),
          Trace = erlang:get_stacktrace(),
          %% There are basic data structure checks only, do not return `false'
          %% here.
@@ -2446,10 +2446,10 @@ poll_private_proj_is_upi_unanimous_sleep(Count, #ch_mgr{runenv=RunEnv}=S) ->
 
 poll_private_proj_is_upi_unanimous3(#ch_mgr{name=MyName, proj=P_current} = S) ->
     UPI = P_current#projection_v1.upi,
-    EpochID = hummer_projection:make_epoch_id(P_current),
+    EpochID = hums_projection:make_epoch_id(P_current),
     {Rs, S2} = read_latest_projection_call_only2(private, UPI, S),
     Rs2 = [if is_record(R, projection_v1) ->
-                   hummer_projection:make_epoch_id(R);
+                   hums_projection:make_epoch_id(R);
               true ->
                    R                            % probably {error, unwritten}
            end || R <- Rs],
@@ -2483,7 +2483,7 @@ poll_private_proj_is_upi_unanimous3(#ch_mgr{name=MyName, proj=P_current} = S) ->
                                    author_server=AuthRep,
                                    upi=_UPIRep,
                                    repairing=_RepairingRep} = NewProj,
-                    ok = hummer_projection_store:write(ProjStore, private, NewProj),
+                    ok = hums_projection_store:write(ProjStore, private, NewProj),
                     case proplists:get_value(private_write_verbose_confirm, S#ch_mgr.opts) of
                         true ->
                             error_logger:info_msg("CONFIRM epoch ~w ~w upi ~w rep ~w auth ~w by ~w\n", [_EpochRep, _CSumRep, _UPIRep, _RepairingRep, AuthRep, MyName]);
@@ -2491,8 +2491,8 @@ poll_private_proj_is_upi_unanimous3(#ch_mgr{name=MyName, proj=P_current} = S) ->
                             ok
                     end,
                     %% Unwedge our FLU.
-                    {ok, NotifyPid} = hummer_projection_store:get_wedge_notify_pid(ProjStore),
-                    %% _ = hummer_flu1:update_wedge_state(NotifyPid, false, EpochID),
+                    {ok, NotifyPid} = hums_projection_store:get_wedge_notify_pid(ProjStore),
+                    %% _ = hums_flu1:update_wedge_state(NotifyPid, false, EpochID),
                     #ch_mgr{proj_history=H} = S2,
                     H2 = add_and_trunc_history({confirm, Epoch}, H,
                                                ?MAX_HISTORY_LENGTH),
@@ -2520,7 +2520,7 @@ calc_sleep_ranked_order(MinSleep, MaxSleep, FLU, FLU_list) ->
     MinSleep + (SleepChunk * Index).
 
 proxy_pid(Name, #ch_mgr{proxies_dict=_ProxiesDict}) ->
-    hummer_proj_sup:make_proj_supname(Name).
+    hums_proj_sup:make_proj_supname(Name).
     %orddict:fetch(Name, ProxiesDict).
 
 make_chmgr_regname(A) when is_atom(A) ->
@@ -2560,7 +2560,7 @@ perhaps_start_repair(#ch_mgr{name=MyName,
             %% RepairOpts = [{repair_mode, check}, verbose],
             RepairFun = fun() -> do_repair(S, RepairOpts, CMode) end,
             LastUPI = lists:last(UPI),
-            StabilityTime = application:get_env(hummer, stability_time, ?REPAIR_START_STABILITY_TIME),
+            StabilityTime = application:get_env(hums, stability_time, ?REPAIR_START_STABILITY_TIME),
             IgnoreStabilityTime_p = proplists:get_value(ignore_stability_time,
                                                         S#ch_mgr.opts, false),
             case timer:now_diff(erlang:timestamp(), Start) div 1000000 of
@@ -2594,11 +2594,11 @@ do_repair(#ch_mgr{name=MyName,
 
     {ok, MyProj} = ?FLU_PC:read_latest_projection(proxy_pid(MyName, S),
                                                   private),
-    MyEpochID = hummer_projection:get_epoch_id(MyProj),
+    MyEpochID = hums_projection:get_epoch_id(MyProj),
     RepairEpochIDs = [case ?FLU_PC:read_latest_projection(proxy_pid(Rep, S),
                                                           private) of
                           {ok, Proj} ->
-                              hummer_projection:get_epoch_id(Proj);
+                              hums_projection:get_epoch_id(Proj);
                           _ ->
                               unknown
                       end || Rep <- Repairing],
@@ -2611,7 +2611,7 @@ do_repair(#ch_mgr{name=MyName,
               [RepairId, MyName, UPI0, Repairing, RepairMode]),
 
             UPI = UPI0 -- Witness_list,
-            Res = hummer_chain_repair:repair(RepairMode, MyName, Repairing, UPI,
+            Res = hums_chain_repair:repair(RepairMode, MyName, Repairing, UPI,
                                             MembersDict, ETS, Opts),
             T2 = erlang:timestamp(),
             Elapsed = (timer:now_diff(T2, T1) div 1000) / 1000,
@@ -2704,21 +2704,21 @@ get_remember_down_list() ->
 %% combination from `Repair1'.
 %%
 %% ```
-%%   Good_UPI2s = [ X ++ Y || X <- hummer_util:ordered_combinations(UPI1),
-%%                            Y <- hummer_util:ordered_combinations(Repair1)]'''
+%%   Good_UPI2s = [ X ++ Y || X <- hums_util:ordered_combinations(UPI1),
+%%                            Y <- hums_util:ordered_combinations(Repair1)]'''
 %%
 %% Rather than creating that list and then checking if `UPI2' is in
 %% it, we try a `diff'-like technique to check for basic state
 %% transition safety.  See docs for {@link mk/3} for more detail.
 %%
 %% ```
-%% 2> hummer_chain_manager1:mk([a,b], [], [a]).
+%% 2> hums_chain_manager1:mk([a,b], [], [a]).
 %% {[keep,del],[]}        %% good transition
-%% 3> hummer_chain_manager1:mk([a,b], [], [b,a]).
+%% 3> hums_chain_manager1:mk([a,b], [], [b,a]).
 %% {[del,keep],[]}        %% bad transition: too few 'keep' for UPI2's length 2
-%% 4> hummer_chain_manager1:mk([a,b], [c,d,e], [a,d]).
+%% 4> hums_chain_manager1:mk([a,b], [c,d,e], [a,d]).
 %% {[keep,del],[2]}       %% good transition
-%% 5> hummer_chain_manager1:mk([a,b], [c,d,e], [a,bogus]).
+%% 5> hums_chain_manager1:mk([a,b], [c,d,e], [a,bogus]).
 %% {[keep,del],[error]}   %% bad transition: 'bogus' not in Repair1'''
 
 simple_chain_state_transition_is_sane(UPI1, Repair1, UPI2) ->
@@ -2831,7 +2831,7 @@ mk([X|UPI1], Repair1, UPI2, Acc) ->
 mk([], [], [], Acc) ->
     {lists:reverse(Acc), []};
 mk([], Repair1, UPI2, Acc) ->
-    {lists:reverse(Acc), hummer_util:mk_order(UPI2, Repair1)}.
+    {lists:reverse(Acc), hums_util:mk_order(UPI2, Repair1)}.
 
 scan_dir(Dir, FileFilterFun, FoldEachFun, FoldEachAcc) ->
     Files = filelib:wildcard(Dir ++ "/*"),
@@ -2882,7 +2882,7 @@ make_zerf(#projection_v1{epoch_number=OldEpochNum,
             P = make_none_projection(OldEpochNum,
                                      MyName, AllMembers, OldWitness_list,
                                      MembersDict),
-            hummer_projection:update_checksum(
+            hums_projection:update_checksum(
               P#projection_v1{chain_name=ChainName,
                               mode=cp_mode,
                               dbg2=[zerf_none,{up,Up},{maj,MajoritySize}]});
@@ -2914,7 +2914,7 @@ make_zerf2(OldEpochNum, Up, MajoritySize, MyName, AllMembers, OldWitness_list,
             %% subsequent chain calculations do their calculations....
             P = make_all_projection(MyName, AllMembers, OldWitness_list,
                                     MembersDict),
-            P2 = hummer_projection:update_checksum(
+            P2 = hums_projection:update_checksum(
                    P#projection_v1{epoch_number=OldEpochNum,
                                    mode=cp_mode, dbg2=[zerf_all]}),
             P2;
@@ -2984,7 +2984,7 @@ perhaps_verbose_c111(P_latest2, #ch_mgr{name=MyName, opts=Opts}=S) ->
                 [{is_annotated,is_annotated(P_latest2)}],
             P_latest2x = P_latest2#projection_v1{dbg2=Dbg2X}, % limit verbose len.
             Last2 = get(last_verbose),
-            Summ2 = hummer_projection:make_summary(P_latest2x),
+            Summ2 = hums_projection:make_summary(P_latest2x),
             if PrivWriteVerb, Summ2 /= Last2 ->
                     put(last_verbose, Summ2),
                     error_logger:info_msg("~p uses plain: ~w \n",
@@ -3030,17 +3030,17 @@ has_make_zerf_annotation(P) ->
 
 get_unfit_list(FitnessServer) ->
     try
-        hummer_fitness:get_unfit_list(FitnessServer)
+        hums_fitness:get_unfit_list(FitnessServer)
     catch exit:{noproc,_} ->
             %% We are probably operating in an eunit test that hasn't used
-            %% the hummer_sup supervisor for startup.
+            %% the hums_sup supervisor for startup.
             []
     end.
 
 get_projection_store_pid_or_regname(#ch_mgr{name=MyName, opts=MgrOpts}) ->
     case get_projection_store_regname(MgrOpts) of
         undefined ->
-            hummer_proj_sup:make_proj_supname(MyName);
+            hums_proj_sup:make_proj_supname(MyName);
         PStr ->
             PStr
     end.

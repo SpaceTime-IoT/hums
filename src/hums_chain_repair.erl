@@ -78,9 +78,9 @@
 %% then the repair network traffic can be minimized by reading each chunk
 %% only once.
 
--module(hummer_chain_repair).
+-module(hums_chain_repair).
 
--include("hummer_projection.hrl").
+-include("hums_projection.hrl").
 
 -define(SHORT_TIMEOUT, 5*1000).
 -define(LONG_TIMEOUT, 60*1000).

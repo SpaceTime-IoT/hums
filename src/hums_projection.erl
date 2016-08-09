@@ -18,9 +18,9 @@
 %%
 %% -------------------------------------------------------------------
 
--module(hummer_projection).
+-module(hums_projection).
 
--include("hummer_projection.hrl").
+-include("hums_projection.hrl").
 
 -export([
          new/6, new/7, new/8,

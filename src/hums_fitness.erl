@@ -18,12 +18,12 @@
 %%
 %% -------------------------------------------------------------------
 
--module(hummer_fitness).
+-module(hums_fitness).
 
 -behaviour(gen_server).
 
--include("hummer.hrl").
--include("hummer_projection.hrl").
+-include("hums.hrl").
+-include("hums_projection.hrl").
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -92,7 +92,7 @@ trigger_early_adjustment(Pid, FLU) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init([{MyFluName}|Args]) ->
-    RegName = hummer_proj_sup:make_fitness_regname(MyFluName),
+    RegName = hums_proj_sup:make_fitness_regname(MyFluName),
     register(RegName, self()),
     {ok, _} = timer:send_interval(5000, debug_dump),
     UseSimulatorP = proplists:get_value(use_partition_simulator, Args, false),
@@ -245,7 +245,7 @@ store_in_map(Map, Name, Now, Down, AdminDown, Props) ->
 
 send_spam(NewMap, DontSendList, MembersDict, #state{my_flu_name=MyFluName}=S) ->
     Send = fun(FLU, #p_srvr{address=Host, port=TcpPort}) ->
-                   SpamProj = hummer_projection:update_checksum(
+                   SpamProj = hums_projection:update_checksum(
                                 #projection_v1{epoch_number=?SPAM_PROJ_EPOCH,
                                                author_server=MyFluName,
                                                dbg=[NewMap],
@@ -283,18 +283,18 @@ send_projection(FLU, _Host, _TcpPort, SpamProj,
     %% This is "best effort" only, use catch to ignore failures.
     ProxyPid = (catch proxy_pid(FLU, S)),
     DoIt = fun(_ArgIgnored) ->
-                   hummer_client:write_projection(ProxyPid,
+                   hums_client:write_projection(ProxyPid,
                                                             public, SpamProj)
            end,
     ProxyPidPlaceholder = proxy_pid_unused,
     if SimulatorP ->
             AllMembers = [K || {K,_V} <- orddict:to_list(MembersDict)],
-            {Partitions, _Islands} = hummer_partition_simulator:get(AllMembers),
-            hummer_chain_manager1:init_remember_down_list(),
-            Res = (catch hummer_chain_manager1:perhaps_call(ProxyPidPlaceholder,
+            {Partitions, _Islands} = hums_partition_simulator:get(AllMembers),
+            hums_chain_manager1:init_remember_down_list(),
+            Res = (catch hums_chain_manager1:perhaps_call(ProxyPidPlaceholder,
                                                         MyFluName,
                                                         Partitions, FLU, DoIt)),
-            %% case hummer_chain_manager1:get_remember_down_list() of
+            %% case hums_chain_manager1:get_remember_down_list() of
             %%     [] ->
             %%         ok;
             %%     _ ->
@@ -380,8 +380,8 @@ perhaps_adjust_members_proxies_dicts(SameMembersDict,
     S;
 perhaps_adjust_members_proxies_dicts(MembersDict,
                                      #state{proxies_dict=OldProxiesDict}=S) ->
-    %_ = hummer_client:stop_proxies(OldProxiesDict),
-    ProxiesDict = dict:new(), %hummer_client:start_proxies(MembersDict),
+    %_ = hums_client:stop_proxies(OldProxiesDict),
+    ProxiesDict = dict:new(), %hums_client:start_proxies(MembersDict),
     S#state{members_dict=MembersDict, proxies_dict=ProxiesDict}.
 
 find_changed_servers(OldMap, NewMap, _MyFluName) ->

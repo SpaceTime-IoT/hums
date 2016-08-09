@@ -1,4 +1,4 @@
-hummer
+hums
 =====
 
 An OTP application

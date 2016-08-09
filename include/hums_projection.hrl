@@ -31,7 +31,7 @@
 
 -record(p_srvr, {
           name            :: pv1_server(),
-          proto_mod = 'hummer_client' :: atom(), % Module name
+          proto_mod = 'hums_client' :: atom(), % Module name
           address         :: term(), % Protocol-specific
           port            :: term(), % Protocol-specific
           props = []      :: list()  % proplist for other related info

@@ -1,9 +1,9 @@
 %%%-------------------------------------------------------------------
-%% @doc hummer top level supervisor.
+%% @doc hums top level supervisor.
 %% @end
 %%%-------------------------------------------------------------------
 
--module(hummer_sup).
+-module(hums_sup).
 
 -behaviour(supervisor).
 

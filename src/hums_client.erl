@@ -1,4 +1,4 @@
--module(hummer_client).
+-module(hums_client).
 
 -export([write_projection/4,
          read_projection/3,
@@ -9,7 +9,7 @@
 
 write_projection(ProjStore, ProjType, Proj, _Timeout) ->
     try
-        hummer_projection_store:write(ProjStore, ProjType, Proj)
+        hums_projection_store:write(ProjStore, ProjType, Proj)
     catch
         _:_ ->
             {error, partition}
@@ -25,7 +25,7 @@ read_projection(ProjStore, ProjType, Epoch) ->
 
 read_projection(ProjStore, ProjType, Epoch, _Timeout) ->
     try
-        hummer_projection_store:read(ProjStore, ProjType, Epoch)
+        hums_projection_store:read(ProjStore, ProjType, Epoch)
     catch
         _:_ ->
             {error, partition}
@@ -33,7 +33,7 @@ read_projection(ProjStore, ProjType, Epoch, _Timeout) ->
 
 read_latest_projection(ProjStore, ProjType, _Timeout) ->
     try
-        hummer_projection_store:read_latest_projection(ProjStore, ProjType)
+        hums_projection_store:read_latest_projection(ProjStore, ProjType)
     catch
         _:_ ->
             {error, partition}
@@ -41,7 +41,7 @@ read_latest_projection(ProjStore, ProjType, _Timeout) ->
 
 kick_projection_reaction(ProjStore, Options, _Timeout) ->
     try
-        hummer_projection_store:kick_projection_reaction(ProjStore, Options)
+        hums_projection_store:kick_projection_reaction(ProjStore, Options)
     catch
         _:_ ->
             {error, partition}
@@ -49,7 +49,7 @@ kick_projection_reaction(ProjStore, Options, _Timeout) ->
 
 list_all_projections(ProjStore, ProjType, _Timeout) ->
     try
-        hummer_projection_store:list_all_projections(ProjStore, ProjType)
+        hums_projection_store:list_all_projections(ProjStore, ProjType)
     catch
         _:_ ->
             {error, partition}

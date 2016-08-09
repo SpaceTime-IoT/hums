@@ -21,7 +21,7 @@
 %% This code was originally from the Hibari DB source code at
 %% [https://github.com/hibari]
 
--module(hummer_chash).
+-module(hums_chash).
 
 %% TODO items:
 %%

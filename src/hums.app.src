@@ -1,8 +1,8 @@
-{application, hummer,
+{application, hums,
  [{description, "An OTP application"},
   {vsn, "0.1.0"},
   {registered, []},
-  {mod, { hummer_app, []}},
+  {mod, { hums_app, []}},
   {applications,
    [kernel,
     stdlib

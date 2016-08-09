@@ -1,9 +1,9 @@
 %%%-------------------------------------------------------------------
-%% @doc hummer projection supervisor.
+%% @doc hums projection supervisor.
 %% @end
 %%%-------------------------------------------------------------------
 
--module(hummer_proj_sup).
+-module(hums_proj_sup).
 
 -behaviour(supervisor).
 
@@ -41,16 +41,16 @@ init([FluName, Props0]) ->
     Props = Props0 ++ [{projection_store_registered_name, ProjRegName},
                        {use_partition_simulator,false}],
     ProjSpec = {ProjRegName,
-                {hummer_projection_store, start_link,
+                {hums_projection_store, start_link,
                  [ProjRegName, DataDir, FluName]},
                 permanent, 5000, worker, []},
     FitnessRegName = make_fitness_regname(FluName),
     FitnessSpec = {FitnessRegName,
-                   {hummer_fitness, start_link,
+                   {hums_fitness, start_link,
                     [ [{FluName}|Props] ]},
                    permanent, 5000, worker, []},
     MgrSpec = {make_mgr_supname(FluName),
-               {hummer_chain_manager1, start_link,
+               {hums_chain_manager1, start_link,
                 [FluName, [], Props]},
                permanent, 5000, worker, []},
 
@@ -61,7 +61,7 @@ init([FluName, Props0]) ->
 %%====================================================================
 
 make_mgr_supname(MgrName) when is_atom(MgrName) ->
-    hummer_chain_manager1:make_chmgr_regname(MgrName).
+    hums_chain_manager1:make_chmgr_regname(MgrName).
 
 make_proj_supname(ProjName) when is_atom(ProjName) ->
     list_to_atom(atom_to_list(ProjName) ++ "_pstore").
@@ -74,6 +74,6 @@ get_data_dir(FluName, Props) ->
         Path when is_list(Path) ->
             Path;
         undefined ->
-            Dir = application:get_env(hummer, flu_data_dir, "./data_dir"),
+            Dir = application:get_env(hums, flu_data_dir, "./data_dir"),
             filename:join(Dir, atom_to_list(FluName))
     end.

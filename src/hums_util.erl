@@ -20,7 +20,7 @@
 
 %% @doc Miscellaneous utility functions.
 
--module(hummer_util).
+-module(hums_util).
 
 -export([
          checksum_chunk/1,
@@ -55,8 +55,8 @@
          ns_info_default/1
         ]).
 
--include("hummer.hrl").
--include("hummer_projection.hrl").
+-include("hums.hrl").
+-include("hums_projection.hrl").
 -include_lib("kernel/include/file.hrl").
 
 %% @doc Create a registered name atom for FLU sequencer internal
